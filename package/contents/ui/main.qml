@@ -18,6 +18,12 @@ PlasmoidItem {
     // Ticks every 30s so countdown labels stay fresh.
     property double nowMs: Date.now()
 
+    // Ring palette, shared by compact and full representations. The weekly
+    // orange is darkened on light themes to keep contrast against the track.
+    readonly property bool darkTheme: Kirigami.Theme.textColor.hslLightness > 0.5
+    readonly property color sessionColor: root.darkTheme ? "#3daee9" : "#2980b9"
+    readonly property color weeklyColor: root.darkTheme ? "#f67400" : "#c85400"
+
     readonly property string codexbarPath: Plasmoid.configuration.codexbarPath || "codexbar"
     readonly property bool showPace: Plasmoid.configuration.showPace
     readonly property var selectedProviders: Parser.selectionList(Plasmoid.configuration.selectedProviders || "")

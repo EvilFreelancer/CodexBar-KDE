@@ -173,6 +173,7 @@ function makeWindow(key, raw, pace) {
     return {
         key: key,
         label: windowLabel(raw.windowMinutes === undefined ? null : raw.windowMinutes),
+        windowMinutes: raw.windowMinutes === undefined ? null : raw.windowMinutes,
         usedPercent: Math.round(raw.usedPercent || 0),
         resetsAt: raw.resetsAt || null,
         resetDescription: raw.resetDescription || "",
@@ -260,6 +261,39 @@ function worstUsedPercent(model) {
     return worst;
 }
 
+// Ring assignment for the radial gauge: outer ring shows the short
+// (session/daily) window, inner ring the long (weekly/monthly) window.
+function gaugeRings(model) {
+    var outerIdx = -1;
+    var innerIdx = -1;
+    for (var i = 0; i < model.windows.length; i++) {
+        var minutes = model.windows[i].windowMinutes;
+        if (minutes !== null && minutes !== undefined && minutes <= 1440 && outerIdx === -1) {
+            outerIdx = i;
+        } else if (minutes !== null && minutes !== undefined && minutes >= 10080 && innerIdx === -1) {
+            innerIdx = i;
+        }
+    }
+    if (outerIdx === -1 && innerIdx === -1 && model.windows.length > 0) {
+        outerIdx = 0;
+    }
+    return { outerIdx: outerIdx, innerIdx: innerIdx };
+}
+
+function gaugeCenterPercent(model) {
+    var rings = gaugeRings(model);
+    var idx = rings.outerIdx !== -1 ? rings.outerIdx : rings.innerIdx;
+    if (idx === -1) {
+        return -1;
+    }
+    return Math.max(0, Math.min(100, 100 - model.windows[idx].usedPercent));
+}
+
+function sweepAngle(percent) {
+    var clamped = Math.max(0, Math.min(100, percent));
+    return clamped * 3.6;
+}
+
 function selectionList(csv) {
     if (!csv) {
         return [];
@@ -299,5 +333,8 @@ if (typeof module !== "undefined" && module.exports) {
         worstUsedPercent: worstUsedPercent,
         selectionList: selectionList,
         toggleSelection: toggleSelection,
+        gaugeRings: gaugeRings,
+        gaugeCenterPercent: gaugeCenterPercent,
+        sweepAngle: sweepAngle,
     };
 }

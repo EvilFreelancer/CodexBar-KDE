@@ -196,3 +196,60 @@ test("selectionList: parses csv config string", () => {
     assert.deepEqual(parser.selectionList("codex,claude"), ["codex", "claude"]);
     assert.deepEqual(parser.selectionList(" codex , claude "), ["codex", "claude"]);
 });
+
+test("gaugeRings: session goes to outer ring, weekly to inner", () => {
+    const result = parser.parseUsageJson(JSON.stringify([CLAUDE_PAYLOAD]));
+    const rings = parser.gaugeRings(result.models[0]);
+    assert.equal(rings.outerIdx, 0);
+    assert.equal(rings.innerIdx, 1);
+});
+
+test("gaugeRings: weekly-only provider lights only the inner ring", () => {
+    const result = parser.parseUsageJson(JSON.stringify([CODEX_PAYLOAD]));
+    const rings = parser.gaugeRings(result.models[0]);
+    assert.equal(rings.outerIdx, -1);
+    assert.equal(rings.innerIdx, 0);
+});
+
+test("gaugeRings: daily maps to outer, monthly to inner", () => {
+    const payload = JSON.parse(JSON.stringify(CLAUDE_PAYLOAD));
+    payload.usage.primary.windowMinutes = 1440;
+    payload.usage.secondary.windowMinutes = 43200;
+    const result = parser.parseUsageJson(JSON.stringify([payload]));
+    const rings = parser.gaugeRings(result.models[0]);
+    assert.equal(rings.outerIdx, 0);
+    assert.equal(rings.innerIdx, 1);
+});
+
+test("gaugeRings: unclassifiable single window falls back to outer", () => {
+    const payload = JSON.parse(JSON.stringify(CODEX_PAYLOAD));
+    payload.usage.secondary.windowMinutes = null;
+    const result = parser.parseUsageJson(JSON.stringify([payload]));
+    const rings = parser.gaugeRings(result.models[0]);
+    assert.equal(rings.outerIdx, 0);
+    assert.equal(rings.innerIdx, -1);
+});
+
+test("gaugeRings: no windows means no rings", () => {
+    const result = parser.parseUsageJson(JSON.stringify([ERROR_PAYLOAD]));
+    const rings = parser.gaugeRings(result.models[0]);
+    assert.equal(rings.outerIdx, -1);
+    assert.equal(rings.innerIdx, -1);
+});
+
+test("gaugeCenterPercent: percent left of outer, falling back to inner", () => {
+    const claude = parser.parseUsageJson(JSON.stringify([CLAUDE_PAYLOAD])).models[0];
+    assert.equal(parser.gaugeCenterPercent(claude), 93); // 100 - 7 session
+    const codex = parser.parseUsageJson(JSON.stringify([CODEX_PAYLOAD])).models[0];
+    assert.equal(parser.gaugeCenterPercent(codex), 63); // 100 - 37 weekly
+    const err = parser.parseUsageJson(JSON.stringify([ERROR_PAYLOAD])).models[0];
+    assert.equal(parser.gaugeCenterPercent(err), -1);
+});
+
+test("sweepAngle: maps percent to degrees, clamped", () => {
+    assert.equal(parser.sweepAngle(0), 0);
+    assert.equal(parser.sweepAngle(50), 180);
+    assert.equal(parser.sweepAngle(100), 360);
+    assert.equal(parser.sweepAngle(150), 360);
+    assert.equal(parser.sweepAngle(-5), 0);
+});

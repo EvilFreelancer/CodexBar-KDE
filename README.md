@@ -6,9 +6,9 @@ reset countdowns, pace summaries, credits, and provider errors.
 
 Works both on the desktop and in a panel:
 
-| Panel (compact) | Popup / desktop | Settings |
-| --- | --- | --- |
-| ![panel](docs/panel.png) | ![popup](docs/popup.png) | ![settings](docs/settings-providers.png) |
+| Panel (compact) | Popup dark | Popup light | Settings |
+| --- | --- | --- | --- |
+| ![panel](docs/panel.png) | ![popup](docs/popup.png) | ![popup light](docs/popup-light.png) | ![settings](docs/settings-providers.png) |
 
 ## Requirements
 
@@ -56,11 +56,16 @@ The widget shells out to `codexbar usage --format json --no-color` through the
 Plasma "executable" data engine on a timer, parses the JSON payloads in
 [parser.js](package/contents/code/parser.js), and renders:
 
-- **Compact (panel)**: per-provider badge (`Cx 100%` = percent left of the most
-  used window) with a usage-colored mini bar (green/yellow/red at 70%/90% used).
-- **Full (popup/desktop)**: one card per provider with usage bars per rate
-  window (Session/Weekly/Monthly…), reset countdowns, pace summaries, account,
-  plan, credits, status incidents, and error messages.
+- **Compact (panel)**: a two-ring radial gauge per provider, styled after the
+  System Monitor sensor widget. Outer ring = session window, inner ring =
+  weekly window; both show percent **left** (a full ring is a full tank). The
+  center number is the session percent left (weekly when there is no session
+  lane); `!` marks a provider error. Ring colors are theme-aware: blue session
+  and orange weekly, adjusted for light and dark color schemes.
+- **Full (popup/desktop)**: one card per provider with the full provider name,
+  the same radial gauge, and a legend with ring-colored dots per rate window
+  (Session/Weekly/Monthly…) — percent left, reset countdowns, pace summaries,
+  account, plan, credits, status incidents, and error messages.
 
 ## Development
 

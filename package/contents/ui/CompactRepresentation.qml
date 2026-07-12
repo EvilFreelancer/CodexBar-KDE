@@ -1,80 +1,59 @@
 import QtQuick
 import QtQuick.Layouts
 import org.kde.plasma.plasmoid
-import org.kde.plasma.components as PlasmaComponents3
+import org.kde.plasma.core as PlasmaCore
 import org.kde.kirigami as Kirigami
 import "../code/parser.js" as Parser
 
-// Panel view: one mini usage meter per provider (short badge + fill bar).
+// Panel view: one two-ring radial gauge per provider
+// (outer ring = session left, inner ring = weekly left).
 Item {
     id: compact
 
-    readonly property int itemWidth: Kirigami.Units.gridUnit * 2.4
+    readonly property bool vertical: Plasmoid.formFactor === PlasmaCore.Types.Vertical
+    readonly property int gaugeSize: compact.vertical
+        ? Math.min(compact.width, Kirigami.Units.gridUnit * 2.4)
+        : Math.min(compact.height, Kirigami.Units.gridUnit * 2.4)
+    readonly property int count: Math.max(1, root.models.length)
 
-    Layout.minimumWidth: meterRow.implicitWidth + Kirigami.Units.smallSpacing * 2
-    Layout.minimumHeight: Kirigami.Units.iconSizes.small
+    Layout.minimumWidth: compact.vertical ? compact.gaugeSize : compact.count * (compact.gaugeSize + gaugeGrid.spacing)
+    Layout.minimumHeight: compact.vertical ? compact.count * (compact.gaugeSize + gaugeGrid.spacing) : compact.gaugeSize
 
-    function stageColor(usedPercent) {
-        var stage = Parser.usageStage(usedPercent)
-        if (stage === "crit") {
-            return Kirigami.Theme.negativeTextColor
-        }
-        if (stage === "warn") {
-            return Kirigami.Theme.neutralTextColor
-        }
-        return Kirigami.Theme.positiveTextColor
-    }
-
-    RowLayout {
-        id: meterRow
+    Grid {
+        id: gaugeGrid
         anchors.centerIn: parent
-        spacing: Kirigami.Units.smallSpacing * 2
+        columns: compact.vertical ? 1 : compact.count
+        spacing: Kirigami.Units.smallSpacing
 
         Kirigami.Icon {
             visible: root.models.length === 0
             source: "office-chart-bar"
-            Layout.preferredWidth: Kirigami.Units.iconSizes.small
-            Layout.preferredHeight: Kirigami.Units.iconSizes.small
+            width: compact.gaugeSize
+            height: compact.gaugeSize
             opacity: root.loading ? 0.5 : 1
         }
 
         Repeater {
             model: root.models
 
-            delegate: ColumnLayout {
+            delegate: RadialGauge {
                 id: meter
                 required property var modelData
-                readonly property int worst: Parser.worstUsedPercent(modelData)
-                readonly property bool hasData: worst >= 0 && !modelData.error
+                readonly property var rings: Parser.gaugeRings(modelData)
+                readonly property int centerPercent: Parser.gaugeCenterPercent(modelData)
 
-                spacing: 1
-                Layout.preferredWidth: compact.itemWidth
-
-                PlasmaComponents3.Label {
-                    Layout.alignment: Qt.AlignHCenter
-                    text: Parser.shortName(meter.modelData.id)
-                        + (meter.hasData ? " " + (100 - meter.worst) + "%" : "")
-                    font.pixelSize: Math.max(Kirigami.Units.gridUnit * 0.55, 9)
-                    color: meter.modelData.error
-                        ? Kirigami.Theme.negativeTextColor
-                        : Kirigami.Theme.textColor
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 3
-                    radius: 1.5
-                    color: Qt.alpha(Kirigami.Theme.textColor, 0.25)
-
-                    Rectangle {
-                        anchors.left: parent.left
-                        anchors.top: parent.top
-                        anchors.bottom: parent.bottom
-                        radius: parent.radius
-                        width: meter.hasData ? parent.width * meter.worst / 100 : 0
-                        color: compact.stageColor(meter.worst)
-                    }
-                }
+                width: compact.gaugeSize
+                height: compact.gaugeSize
+                outerColor: root.sessionColor
+                innerColor: root.weeklyColor
+                outerPercent: rings.outerIdx >= 0
+                    ? 100 - modelData.windows[rings.outerIdx].usedPercent : -1
+                innerPercent: rings.innerIdx >= 0
+                    ? 100 - modelData.windows[rings.innerIdx].usedPercent : -1
+                centerText: modelData.error
+                    ? "!"
+                    : (meter.centerPercent >= 0 ? String(meter.centerPercent) : "")
+                centerTextScale: 0.34
             }
         }
     }
