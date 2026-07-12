@@ -52,7 +52,7 @@ PlasmaExtras.Representation {
 
             PlasmaComponents3.Label {
                 visible: root.lastUpdatedMs > 0
-                text: Qt.formatTime(new Date(root.lastUpdatedMs), "hh:mm")
+                text: i18n("updated %1", Parser.formatAgo(root.lastUpdatedMs, root.nowMs))
                 opacity: 0.6
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
             }
@@ -189,6 +189,17 @@ PlasmaExtras.Representation {
                         font.pointSize: Kirigami.Theme.smallFont.pointSize
                     }
 
+                    PlasmaComponents3.Label {
+                        visible: !!card.modelData.staleError
+                        Layout.fillWidth: true
+                        text: i18n("Refresh failed, showing data from %1: %2",
+                            Parser.formatAgo(card.modelData.fetchedAtMs !== undefined ? card.modelData.fetchedAtMs : -1, root.nowMs),
+                            card.modelData.staleError || "")
+                        wrapMode: Text.WordWrap
+                        color: Kirigami.Theme.neutralTextColor
+                        font.pointSize: Kirigami.Theme.smallFont.pointSize
+                    }
+
                     Repeater {
                         model: card.modelData.windows
 
@@ -218,9 +229,13 @@ PlasmaExtras.Representation {
                                 Item { Layout.fillWidth: true }
 
                                 PlasmaComponents3.Label {
-                                    text: i18n("%1% used", windowRow.modelData.usedPercent)
+                                    text: windowRow.modelData.usageKnown === false
+                                        ? i18n("usage n/a")
+                                        : i18n("%1% used", windowRow.modelData.usedPercent)
                                     font.pointSize: Kirigami.Theme.smallFont.pointSize
-                                    color: full.stageColor(windowRow.modelData.usedPercent)
+                                    color: windowRow.modelData.usageKnown === false
+                                        ? Kirigami.Theme.disabledTextColor
+                                        : full.stageColor(windowRow.modelData.usedPercent)
                                 }
 
                                 PlasmaComponents3.Label {

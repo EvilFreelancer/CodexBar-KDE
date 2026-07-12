@@ -6,6 +6,12 @@
 #   mock-codexbar.sh usage --format json --no-color [--provider <id>]
 set -euo pipefail
 
+# Simulate a slow CLI (e.g. Claude PTY probe) to test that cached numbers
+# stay on screen during background refreshes.
+if [ -n "${MOCK_CODEXBAR_DELAY:-}" ]; then
+    sleep "$MOCK_CODEXBAR_DELAY"
+fi
+
 provider="all"
 prev=""
 for arg in "$@"; do
@@ -37,6 +43,26 @@ cat <<EOF
       "resetsAt": "$weekly_reset_codex"
     },
     "tertiary": null,
+    "extraRateWindows": [
+      {
+        "id": "codex-spark",
+        "title": "Codex Spark Weekly",
+        "window": {
+          "usedPercent": 4,
+          "windowMinutes": 10080,
+          "resetsAt": "$weekly_reset_codex"
+        }
+      },
+      {
+        "id": "code-review",
+        "title": "Code review",
+        "window": {
+          "usedPercent": 15,
+          "windowMinutes": null,
+          "resetsAt": null
+        }
+      }
+    ],
     "identity": {
       "providerID": "codex",
       "accountEmail": "user@example.com",

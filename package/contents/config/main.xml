@@ -21,5 +21,9 @@
             <label>Comma-separated provider ids to display. Empty means the providers enabled in the CodexBar CLI config.</label>
             <default></default>
         </entry>
+        <entry name="cacheJson" type="String">
+            <label>Serialized last-known usage data, shown instantly on startup while a refresh runs in the background.</label>
+            <default></default>
+        </entry>
     </group>
 </kcfg>

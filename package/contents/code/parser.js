@@ -165,19 +165,21 @@ function formatCountdown(resetsAtIso, nowMs) {
     return minutes + "m";
 }
 
-function makeWindow(key, raw, pace) {
+function makeWindow(key, raw, pace, labelOverride, usageKnown) {
     var paceSummary = "";
     if (pace && pace[key] && pace[key].summary) {
         paceSummary = pace[key].summary;
     }
+    var minutes = raw.windowMinutes === undefined ? null : raw.windowMinutes;
     return {
         key: key,
-        label: windowLabel(raw.windowMinutes === undefined ? null : raw.windowMinutes),
-        windowMinutes: raw.windowMinutes === undefined ? null : raw.windowMinutes,
+        label: labelOverride || windowLabel(minutes),
+        windowMinutes: minutes,
         usedPercent: Math.round(raw.usedPercent || 0),
         resetsAt: raw.resetsAt || null,
         resetDescription: raw.resetDescription || "",
         paceSummary: paceSummary,
+        usageKnown: usageKnown === undefined ? true : usageKnown,
     };
 }
 
@@ -192,6 +194,35 @@ function payloadToModel(payload) {
                 continue;
             }
             windows.push(makeWindow(keys[i], raw, payload.pace || null));
+        }
+        // Named model-specific lanes (e.g. Codex Spark, Code review).
+        var extras = usage.extraRateWindows || [];
+        for (var j = 0; j < extras.length; j++) {
+            var extra = extras[j];
+            if (!extra || !extra.window || extra.window.isSyntheticPlaceholder) {
+                continue;
+            }
+            windows.push(makeWindow(
+                "extra:" + (extra.id || j),
+                extra.window,
+                null,
+                extra.title || extra.id || "Extra",
+                extra.usageKnown === undefined ? true : extra.usageKnown));
+        }
+    }
+    // OpenAI web dashboard exposes code review as a bare remaining percent.
+    var dashboard = payload.openaiDashboard || null;
+    if (dashboard && typeof dashboard.codeReviewRemainingPercent === "number") {
+        var hasReviewLane = windows.some(function(w) {
+            return w.label.toLowerCase().indexOf("code review") !== -1;
+        });
+        if (!hasReviewLane) {
+            windows.push(makeWindow(
+                "extra:code-review",
+                { usedPercent: 100 - dashboard.codeReviewRemainingPercent, windowMinutes: null, resetsAt: null },
+                null,
+                "Code review",
+                true));
         }
     }
     var account = null;
@@ -266,7 +297,14 @@ function worstUsedPercent(model) {
 function gaugeRings(model) {
     var outerIdx = -1;
     var innerIdx = -1;
+    var firstKnownIdx = -1;
     for (var i = 0; i < model.windows.length; i++) {
+        if (model.windows[i].usageKnown === false) {
+            continue;
+        }
+        if (firstKnownIdx === -1) {
+            firstKnownIdx = i;
+        }
         var minutes = model.windows[i].windowMinutes;
         if (minutes !== null && minutes !== undefined && minutes <= 1440 && outerIdx === -1) {
             outerIdx = i;
@@ -274,8 +312,8 @@ function gaugeRings(model) {
             innerIdx = i;
         }
     }
-    if (outerIdx === -1 && innerIdx === -1 && model.windows.length > 0) {
-        outerIdx = 0;
+    if (outerIdx === -1 && innerIdx === -1 && firstKnownIdx !== -1) {
+        outerIdx = firstKnownIdx;
     }
     return { outerIdx: outerIdx, innerIdx: innerIdx };
 }
@@ -292,6 +330,53 @@ function gaugeCenterPercent(model) {
 function sweepAngle(percent) {
     var clamped = Math.max(0, Math.min(100, percent));
     return clamped * 3.6;
+}
+
+// Merge freshly parsed provider models into the cached map. Successful
+// fetches replace the cache entry; errors keep the last good data and only
+// mark it stale, so panel gauges never blank out during background refreshes.
+function applyUpdate(prevById, models, nowMs) {
+    var byId = {};
+    var key;
+    for (key in prevById) {
+        byId[key] = prevById[key];
+    }
+    for (var i = 0; i < models.length; i++) {
+        var model = models[i];
+        var cached = byId[model.id];
+        if (model.error && cached && cached.windows && cached.windows.length > 0) {
+            var stale = {};
+            for (key in cached) {
+                stale[key] = cached[key];
+            }
+            stale.staleError = model.error;
+            byId[model.id] = stale;
+            continue;
+        }
+        model.fetchedAtMs = nowMs;
+        model.staleError = null;
+        byId[model.id] = model;
+    }
+    return { byId: byId };
+}
+
+function formatAgo(thenMs, nowMs) {
+    if (thenMs === null || thenMs === undefined || thenMs < 0) {
+        return "";
+    }
+    var minutes = Math.floor((nowMs - thenMs) / 60000);
+    if (minutes < 1) {
+        return "just now";
+    }
+    if (minutes < 60) {
+        return minutes + "m ago";
+    }
+    var hours = Math.floor(minutes / 60);
+    if (hours < 24) {
+        return hours + "h " + (minutes % 60) + "m ago";
+    }
+    var days = Math.floor(hours / 24);
+    return days + "d " + (hours % 24) + "h ago";
 }
 
 function selectionList(csv) {
@@ -336,5 +421,7 @@ if (typeof module !== "undefined" && module.exports) {
         gaugeRings: gaugeRings,
         gaugeCenterPercent: gaugeCenterPercent,
         sweepAngle: sweepAngle,
+        applyUpdate: applyUpdate,
+        formatAgo: formatAgo,
     };
 }

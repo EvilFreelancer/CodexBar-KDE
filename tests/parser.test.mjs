@@ -253,3 +253,108 @@ test("sweepAngle: maps percent to degrees, clamped", () => {
     assert.equal(parser.sweepAngle(150), 360);
     assert.equal(parser.sweepAngle(-5), 0);
 });
+
+test("parseUsageJson: extraRateWindows become titled windows", () => {
+    const payload = JSON.parse(JSON.stringify(CODEX_PAYLOAD));
+    payload.usage.extraRateWindows = [
+        {
+            id: "codex-spark",
+            title: "Codex Spark Weekly",
+            window: { usedPercent: 0, windowMinutes: 10080, resetsAt: "2026-07-19T21:12:52Z" },
+        },
+        {
+            id: "code-review",
+            title: "Code review",
+            window: { usedPercent: 12, windowMinutes: null, resetsAt: null },
+        },
+    ];
+    const model = parser.parseUsageJson(JSON.stringify([payload])).models[0];
+    assert.equal(model.windows.length, 3);
+    assert.equal(model.windows[1].label, "Codex Spark Weekly");
+    assert.equal(model.windows[2].label, "Code review");
+    assert.equal(model.windows[2].usedPercent, 12);
+});
+
+test("parseUsageJson: extra windows with usageKnown=false are marked", () => {
+    const payload = JSON.parse(JSON.stringify(CODEX_PAYLOAD));
+    payload.usage.extraRateWindows = [
+        {
+            id: "mystery",
+            title: "Mystery lane",
+            usageKnown: false,
+            window: { usedPercent: 0, windowMinutes: 10080, resetsAt: "2026-07-19T21:12:52Z" },
+        },
+    ];
+    const model = parser.parseUsageJson(JSON.stringify([payload])).models[0];
+    const lane = model.windows.find((w) => w.label === "Mystery lane");
+    assert.equal(lane.usageKnown, false);
+    // Primary/secondary windows report usage as known.
+    assert.equal(model.windows[0].usageKnown, true);
+});
+
+test("parseUsageJson: dashboard code review becomes a window when absent from extras", () => {
+    const payload = JSON.parse(JSON.stringify(CODEX_PAYLOAD));
+    payload.openaiDashboard = { codeReviewRemainingPercent: 80 };
+    const model = parser.parseUsageJson(JSON.stringify([payload])).models[0];
+    const review = model.windows.find((w) => w.label === "Code review");
+    assert.ok(review, "code review window missing");
+    assert.equal(review.usedPercent, 20);
+});
+
+test("gaugeRings: unknown-usage windows never claim a ring", () => {
+    const payload = JSON.parse(JSON.stringify(CLAUDE_PAYLOAD));
+    payload.usage.extraRateWindows = [
+        {
+            id: "mystery",
+            title: "Mystery",
+            usageKnown: false,
+            window: { usedPercent: 0, windowMinutes: 300, resetsAt: null },
+        },
+    ];
+    const model = parser.parseUsageJson(JSON.stringify([payload])).models[0];
+    const rings = parser.gaugeRings(model);
+    assert.equal(model.windows[rings.outerIdx].label, "Session");
+    assert.equal(model.windows[rings.innerIdx].label, "Weekly");
+});
+
+test("applyUpdate: fresh data replaces the provider entry", () => {
+    const first = parser.parseUsageJson(JSON.stringify([CODEX_PAYLOAD])).models;
+    const state = parser.applyUpdate({}, first, 1000);
+    assert.equal(state.byId.codex.fetchedAtMs, 1000);
+    const updated = JSON.parse(JSON.stringify(CODEX_PAYLOAD));
+    updated.usage.secondary.usedPercent = 55;
+    const second = parser.parseUsageJson(JSON.stringify([updated])).models;
+    const state2 = parser.applyUpdate(state.byId, second, 2000);
+    assert.equal(state2.byId.codex.windows[0].usedPercent, 55);
+    assert.equal(state2.byId.codex.fetchedAtMs, 2000);
+});
+
+test("applyUpdate: error keeps cached data and marks it stale", () => {
+    const good = parser.parseUsageJson(JSON.stringify([CODEX_PAYLOAD])).models;
+    const state = parser.applyUpdate({}, good, 1000);
+    const errModels = parser.parseUsageJson(JSON.stringify([
+        { provider: "codex", source: "oauth", error: { code: 1, message: "network down" } },
+    ])).models;
+    const state2 = parser.applyUpdate(state.byId, errModels, 2000);
+    const codex = state2.byId.codex;
+    assert.equal(codex.windows.length, 1, "cached windows must survive");
+    assert.match(codex.staleError, /network down/);
+    assert.equal(codex.fetchedAtMs, 1000, "fetch time stays at last good data");
+});
+
+test("applyUpdate: error without cache shows the error model", () => {
+    const errModels = parser.parseUsageJson(JSON.stringify([ERROR_PAYLOAD])).models;
+    const state = parser.applyUpdate({}, errModels, 500);
+    assert.match(state.byId.gemini.error, /not found/);
+});
+
+test("formatAgo: humanized elapsed time", () => {
+    const now = 10 * 60 * 1000;
+    assert.equal(parser.formatAgo(now - 20 * 1000, now), "just now");
+    assert.equal(parser.formatAgo(now - 5 * 60 * 1000, now), "5m ago");
+    assert.equal(parser.formatAgo(now - 0, now), "just now");
+    const now2 = 4 * 3600 * 1000;
+    assert.equal(parser.formatAgo(now2 - (2 * 3600 + 15 * 60) * 1000, now2), "2h 15m ago");
+    assert.equal(parser.formatAgo(0, 30 * 3600 * 1000), "1d 6h ago");
+    assert.equal(parser.formatAgo(-1, 1000), "");
+});

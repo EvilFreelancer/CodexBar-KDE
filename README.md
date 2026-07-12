@@ -85,8 +85,14 @@ Plasma "executable" data engine on a timer, parses the JSON payloads in
   color schemes.
 - **Full (popup/desktop)**: one card per provider with the full provider name,
   the same radial gauge, and a legend with ring-colored dots per rate window
-  (Session/Weekly/Monthly…) — percent used, reset countdowns, pace summaries,
-  account, plan, credits, status incidents, and error messages.
+  (Session/Weekly/Monthly plus named lanes such as Codex Spark or Code
+  review) — percent used, reset countdowns, pace summaries, account, plan,
+  credits, status incidents, and error messages.
+- **Cache + background refresh**: the last known numbers stay on screen while
+  a refresh runs in the background and survive plasmashell restarts; the
+  tooltip and popup header show when data was last updated. If a provider
+  fetch fails, its cached card stays visible with a "showing data from …"
+  note instead of blanking out.
 
 ## Packaging for the KDE Store
 
