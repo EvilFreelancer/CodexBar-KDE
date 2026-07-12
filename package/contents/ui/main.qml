@@ -61,7 +61,7 @@ PlasmoidItem {
             var parts = []
             for (var j = 0; j < m.windows.length; j++) {
                 var w = m.windows[j]
-                parts.push(w.label + " " + (100 - w.usedPercent) + "% left")
+                parts.push(w.label + " " + w.usedPercent + "% used")
             }
             lines.push(m.name + ": " + (parts.length ? parts.join(", ") : i18n("no data")))
         }

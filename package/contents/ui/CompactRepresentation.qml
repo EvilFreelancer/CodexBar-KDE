@@ -47,9 +47,9 @@ Item {
                 outerColor: root.sessionColor
                 innerColor: root.weeklyColor
                 outerPercent: rings.outerIdx >= 0
-                    ? 100 - modelData.windows[rings.outerIdx].usedPercent : -1
+                    ? modelData.windows[rings.outerIdx].usedPercent : -1
                 innerPercent: rings.innerIdx >= 0
-                    ? 100 - modelData.windows[rings.innerIdx].usedPercent : -1
+                    ? modelData.windows[rings.innerIdx].usedPercent : -1
                 centerText: modelData.error
                     ? "!"
                     : (meter.centerPercent >= 0 ? String(meter.centerPercent) : "")

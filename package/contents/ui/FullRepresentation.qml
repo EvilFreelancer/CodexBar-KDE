@@ -125,9 +125,9 @@ PlasmaExtras.Representation {
                     outerColor: root.sessionColor
                     innerColor: root.weeklyColor
                     outerPercent: card.rings.outerIdx >= 0
-                        ? 100 - card.modelData.windows[card.rings.outerIdx].usedPercent : -1
+                        ? card.modelData.windows[card.rings.outerIdx].usedPercent : -1
                     innerPercent: card.rings.innerIdx >= 0
-                        ? 100 - card.modelData.windows[card.rings.innerIdx].usedPercent : -1
+                        ? card.modelData.windows[card.rings.innerIdx].usedPercent : -1
                     centerText: card.modelData.error
                         ? "!"
                         : (card.centerPercent >= 0 ? card.centerPercent + "%" : "")
@@ -218,7 +218,7 @@ PlasmaExtras.Representation {
                                 Item { Layout.fillWidth: true }
 
                                 PlasmaComponents3.Label {
-                                    text: i18n("%1% left", 100 - windowRow.modelData.usedPercent)
+                                    text: i18n("%1% used", windowRow.modelData.usedPercent)
                                     font.pointSize: Kirigami.Theme.smallFont.pointSize
                                     color: full.stageColor(windowRow.modelData.usedPercent)
                                 }

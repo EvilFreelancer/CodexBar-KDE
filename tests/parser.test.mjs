@@ -237,11 +237,11 @@ test("gaugeRings: no windows means no rings", () => {
     assert.equal(rings.innerIdx, -1);
 });
 
-test("gaugeCenterPercent: percent left of outer, falling back to inner", () => {
+test("gaugeCenterPercent: percent used of outer, falling back to inner", () => {
     const claude = parser.parseUsageJson(JSON.stringify([CLAUDE_PAYLOAD])).models[0];
-    assert.equal(parser.gaugeCenterPercent(claude), 93); // 100 - 7 session
+    assert.equal(parser.gaugeCenterPercent(claude), 7); // session used
     const codex = parser.parseUsageJson(JSON.stringify([CODEX_PAYLOAD])).models[0];
-    assert.equal(parser.gaugeCenterPercent(codex), 63); // 100 - 37 weekly
+    assert.equal(parser.gaugeCenterPercent(codex), 37); // weekly used
     const err = parser.parseUsageJson(JSON.stringify([ERROR_PAYLOAD])).models[0];
     assert.equal(parser.gaugeCenterPercent(err), -1);
 });

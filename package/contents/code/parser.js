@@ -286,7 +286,7 @@ function gaugeCenterPercent(model) {
     if (idx === -1) {
         return -1;
     }
-    return Math.max(0, Math.min(100, 100 - model.windows[idx].usedPercent));
+    return Math.max(0, Math.min(100, model.windows[idx].usedPercent));
 }
 
 function sweepAngle(percent) {
