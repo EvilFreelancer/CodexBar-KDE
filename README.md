@@ -1,14 +1,19 @@
 # CodexBar-KDE
 
 KDE Plasma 6 widget (plasmoid) that shows AI coding-provider limits from the
-[CodexBar](https://github.com/steipete/CodexBar) CLI: session/weekly usage bars,
-reset countdowns, pace summaries, credits, and provider errors.
+[CodexBar](https://github.com/steipete/CodexBar) CLI as two-ring radial gauges
+(outer ring = session, inner ring = weekly, percent used), with reset
+countdowns, pace summaries, credits, and provider errors.
 
 Works both on the desktop and in a panel:
 
-| Panel (compact) | Popup dark | Popup light | Settings |
-| --- | --- | --- | --- |
-| ![panel](docs/panel.png) | ![popup](docs/popup.png) | ![popup light](docs/popup-light.png) | ![settings](docs/settings-providers.png) |
+| Panel (compact) | Popup dark | Popup light |
+| --- | --- | --- |
+| ![panel](docs/panel.png) | ![popup](docs/popup.png) | ![popup light](docs/popup-light.png) |
+
+Settings — pick which coding agents to display:
+
+![settings](docs/settings-providers.png)
 
 ## Requirements
 
