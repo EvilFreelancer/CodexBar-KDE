@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run tests
+        run: node --test
+
+      - name: Check metadata version matches tag
+        run: |
+          VERSION=$(sed -n 's/.*"Version": "\([^"]*\)".*/\1/p' package/metadata.json)
+          TAG="${GITHUB_REF_NAME#v}"
+          if [ "$VERSION" != "$TAG" ]; then
+            echo "package/metadata.json Version ($VERSION) does not match tag ($TAG)" >&2
+            exit 1
+          fi
+
+      - name: Build .plasmoid artifact
+        run: make dist
+
+      - name: Create GitHub release with artifact
+        uses: softprops/action-gh-release@v2
+        with:
+          files: org.rpa.codexbar-v*.plasmoid
+          generate_release_notes: true
