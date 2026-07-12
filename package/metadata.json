@@ -13,7 +13,7 @@
         "Id": "org.rpa.codexbar",
         "License": "MIT",
         "Name": "CodexBar",
-        "Version": "0.1.0",
+        "Version": "0.2.0",
         "Website": "https://github.com/EvilFreelancer/CodexBar-KDE"
     },
     "KPackageStructure": "Plasma/Applet",

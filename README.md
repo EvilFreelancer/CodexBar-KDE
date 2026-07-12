@@ -73,6 +73,18 @@ Plasma "executable" data engine on a timer, parses the JSON payloads in
   (Session/Weekly/Monthly…) — percent used, reset countdowns, pace summaries,
   account, plan, credits, status incidents, and error messages.
 
+## Packaging for the KDE Store
+
+```bash
+make dist    # builds org.rpa.codexbar-v<version>.plasmoid (zip of package/)
+```
+
+The resulting `.plasmoid` file is what gets uploaded to
+[store.kde.org](https://store.kde.org) (profile → *Add Product*, category
+*KDE Plasma Extensions → Plasma Widgets*). `metadata.json` already carries
+`"X-Plasma-API-Minimum-Version": "6.0"`, which is required for the widget to
+show up in Plasma 6's *Get New Widgets* dialog.
+
 ## Development
 
 ```bash
