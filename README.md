@@ -1,9 +1,14 @@
 # CodexBar-KDE
 
+[![KDE Store](https://img.shields.io/badge/KDE%20Store-CodexBar--KDE-1d99f3)](https://store.kde.org/p/2365355)
+[![Latest release](https://img.shields.io/github/v/release/EvilFreelancer/CodexBar-KDE)](https://github.com/EvilFreelancer/CodexBar-KDE/releases/latest)
+
 KDE Plasma 6 widget (plasmoid) that shows AI coding-provider limits from the
 [CodexBar](https://github.com/steipete/CodexBar) CLI as two-ring radial gauges
 (outer ring = session, inner ring = weekly, percent used), with reset
 countdowns, pace summaries, credits, and provider errors.
+
+Available on the [KDE Store](https://store.kde.org/p/2365355).
 
 Works both on the desktop and in a panel:
 
@@ -34,6 +39,16 @@ Settings — pick which coding agents to display:
   automatically; see `codexbar config providers` for the full list).
 
 ## Install
+
+### From the KDE Store (recommended)
+
+Right-click a panel or the desktop → *Add Widgets…* → *Get New Widgets…* →
+*Download New Plasma Widgets* → search for **CodexBar**, or grab the
+`.plasmoid` from the [store page](https://store.kde.org/p/2365355) /
+[GitHub releases](https://github.com/EvilFreelancer/CodexBar-KDE/releases)
+and install it with `kpackagetool6 --type Plasma/Applet -i <file>.plasmoid`.
+
+### From source
 
 ```bash
 make install     # kpackagetool6 --type Plasma/Applet -i package
