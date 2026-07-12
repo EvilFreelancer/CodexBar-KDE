@@ -1,0 +1,23 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "freelancerevil@gmail.com",
+                "Name": "Pavel Rykov"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "AI coding-provider limits from the CodexBar CLI",
+        "Description[ru]": "Лимиты AI-агентов из CodexBar CLI",
+        "Icon": "office-chart-bar",
+        "Id": "org.rpa.codexbar",
+        "License": "MIT",
+        "Name": "CodexBar",
+        "Version": "0.1.0",
+        "Website": "https://github.com/EvilFreelancer/CodexBar-KDE"
+    },
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-NotificationArea": true,
+    "X-Plasma-NotificationAreaCategory": "SystemServices"
+}
