@@ -1,4 +1,4 @@
-# CodexBar-KDE
+# <img src="package/contents/icons/codexbar.svg" width="28" alt=""/> CodexBar-KDE
 
 [![KDE Store](https://img.shields.io/badge/KDE%20Store-CodexBar--KDE-1d99f3)](https://store.kde.org/p/2365355)
 [![Latest release](https://img.shields.io/github/v/release/EvilFreelancer/CodexBar-KDE)](https://github.com/EvilFreelancer/CodexBar-KDE/releases/latest)
@@ -63,7 +63,8 @@ Then add the **CodexBar** widget to a panel or the desktop
 
 - **General** — path to the `codexbar` binary, refresh interval, pace lines
   on/off.
-- **Providers** — checkbox list of all 58 CodexBar providers. With nothing
+- **Providers** — checkbox list of all 58 CodexBar providers (Codex and
+  Claude are pre-selected by default). With nothing
   selected the widget follows the providers enabled in the CodexBar CLI config
   (`~/.config/codexbar/config.json`, managed via
   `codexbar config enable --provider <id>`). Selecting providers here fetches

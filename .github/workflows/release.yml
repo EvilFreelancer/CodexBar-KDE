@@ -31,10 +31,17 @@ jobs:
           fi
 
       - name: Build .plasmoid artifact
-        run: make dist
+        run: |
+          make dist
+          # Stable-named copy so the KDE Store can link
+          # .../releases/latest/download/org.rpa.codexbar.plasmoid and users
+          # always fetch the newest version without a re-upload per release.
+          cp org.rpa.codexbar-v*.plasmoid org.rpa.codexbar.plasmoid
 
-      - name: Create GitHub release with artifact
+      - name: Create GitHub release with artifacts
         uses: softprops/action-gh-release@v2
         with:
-          files: org.rpa.codexbar-v*.plasmoid
+          files: |
+            org.rpa.codexbar-v*.plasmoid
+            org.rpa.codexbar.plasmoid
           generate_release_notes: true

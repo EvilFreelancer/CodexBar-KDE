@@ -27,7 +27,7 @@ Item {
 
         Kirigami.Icon {
             visible: root.models.length === 0
-            source: "office-chart-bar"
+            source: Qt.resolvedUrl("../icons/codexbar.svg")
             width: compact.gaugeSize
             height: compact.gaugeSize
             opacity: root.loading ? 0.5 : 1
