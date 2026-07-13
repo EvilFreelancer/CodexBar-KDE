@@ -57,9 +57,14 @@ learned the hard way; follow them instead of rediscovering the failures.
 ## KDE Store deployment (store.kde.org/p/2365355, account EvilFreelancer)
 
 - The product must expose exactly ONE download entry so Discover updates
-  automatically without asking the user to pick a file. Preferred: an
-  "Add URL" entry pointing at the stable `releases/latest/download/...` link
-  (then releases only need the product version bumped, no re-upload).
+  automatically without asking the user to pick a file. Preferred (current
+  setup since v0.5.0): an "Add URL" entry pointing at the stable
+  `releases/latest/download/org.rpa.codexbar.plasmoid` link — verified to
+  stay an EXTERNAL link on the product page (the store does not snapshot the
+  file), so users always download the newest release. Per release only the
+  product version field needs bumping on the Basics tab. The Add URL dialog
+  is `#get-url` + `#get-url-submit` after pressing the "Add URL" button on
+  the Files tab (T&C checkbox must be accepted first).
 - When replacing files: delete old rows via `a[data-deletepploadfile-btn]`
   on the edit form's Files tab ONE AT A TIME with pauses — parallel deletes
   race in the ppload API (`mkdir(): File exists` alerts).
