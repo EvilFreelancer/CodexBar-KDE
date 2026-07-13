@@ -93,6 +93,12 @@ Plasma "executable" data engine on a timer, parses the JSON payloads in
   tooltip and popup header show when data was last updated. If a provider
   fetch fails, its cached card stays visible with a "showing data from …"
   note instead of blanking out.
+- **Local token costs**: provider cards show today's and last-30-days spend
+  in USD with token counts (from `codexbar cost`, Codex and Claude) plus a
+  daily spend history chart. Both can be toggled off in the settings.
+- **Proxy support**: an optional proxy URL (http/socks5) is exported as
+  `http_proxy`/`https_proxy`/`ALL_PROXY` for every CLI call — handy when
+  provider APIs are blocked in your region.
 
 ## Packaging for the KDE Store
 

@@ -10,7 +10,7 @@ PlasmaExtras.Representation {
     id: full
 
     Layout.preferredWidth: Kirigami.Units.gridUnit * 22
-    Layout.preferredHeight: Kirigami.Units.gridUnit * 24
+    Layout.preferredHeight: Kirigami.Units.gridUnit * 26
     Layout.minimumWidth: Kirigami.Units.gridUnit * 16
     Layout.minimumHeight: Kirigami.Units.gridUnit * 10
 
@@ -38,6 +38,15 @@ PlasmaExtras.Representation {
         return w.resetDescription
     }
 
+    function costLine(cost, kind) {
+        var money = Parser.formatMoney(kind === "today" ? cost.todayCostUSD : cost.month30CostUSD)
+        var tokens = Parser.humanTokens(kind === "today" ? cost.todayTokens : cost.month30Tokens)
+        if (money.length === 0 && tokens.length === 0) {
+            return ""
+        }
+        return money + (tokens.length > 0 ? " · " + tokens + " tok" : "")
+    }
+
     header: PlasmaExtras.PlasmoidHeading {
         RowLayout {
             anchors.fill: parent
@@ -57,17 +66,22 @@ PlasmaExtras.Representation {
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
             }
 
-            PlasmaComponents3.BusyIndicator {
-                visible: root.loading
-                Layout.preferredWidth: Kirigami.Units.iconSizes.small
-                Layout.preferredHeight: Kirigami.Units.iconSizes.small
-            }
-
             PlasmaComponents3.ToolButton {
+                id: refreshButton
                 icon.name: "view-refresh"
                 enabled: !root.loading
                 onClicked: root.refresh()
                 PlasmaComponents3.ToolTip { text: i18n("Refresh") }
+
+                rotation: 0
+                RotationAnimation on rotation {
+                    running: root.loading
+                    from: 0
+                    to: 360
+                    duration: 1100
+                    loops: Animation.Infinite
+                }
+                onEnabledChanged: if (enabled) { rotation = 0 }
             }
         }
     }
@@ -98,12 +112,15 @@ PlasmaExtras.Representation {
             }
         }
 
-        delegate: Kirigami.AbstractCard {
+        delegate: Item {
             id: card
             required property var modelData
             readonly property var rings: Parser.gaugeRings(modelData)
             readonly property int centerPercent: Parser.gaugeCenterPercent(modelData)
+            readonly property var cost: root.showCost ? (root.costById[modelData.id] || null) : null
+
             width: providerList.width - providerList.leftMargin - providerList.rightMargin
+            height: cardContent.implicitHeight + Kirigami.Units.largeSpacing * 2
 
             function ringColor(index) {
                 if (index === card.rings.outerIdx) {
@@ -115,7 +132,16 @@ PlasmaExtras.Representation {
                 return Qt.alpha(Kirigami.Theme.textColor, 0.4)
             }
 
-            contentItem: RowLayout {
+            Rectangle {
+                anchors.fill: parent
+                radius: Kirigami.Units.cornerRadius !== undefined ? Kirigami.Units.cornerRadius : 5
+                color: Qt.alpha(Kirigami.Theme.textColor, 0.06)
+            }
+
+            RowLayout {
+                id: cardContent
+                anchors.fill: parent
+                anchors.margins: Kirigami.Units.largeSpacing
                 spacing: Kirigami.Units.largeSpacing
 
                 RadialGauge {
@@ -249,7 +275,7 @@ PlasmaExtras.Representation {
                             PlasmaComponents3.Label {
                                 visible: root.showPace && windowRow.modelData.paceSummary.length > 0
                                 Layout.fillWidth: true
-                                Layout.leftMargin: Kirigami.Units.smallSpacing * 2 + Kirigami.Units.smallSpacing
+                                Layout.leftMargin: Kirigami.Units.smallSpacing * 3
                                 text: windowRow.modelData.paceSummary
                                 elide: Text.ElideRight
                                 opacity: 0.5
@@ -265,6 +291,79 @@ PlasmaExtras.Representation {
                             : "")
                         font.pointSize: Kirigami.Theme.smallFont.pointSize
                         opacity: 0.7
+                    }
+
+                    // Local token cost scan (Codex/Claude): spend and tokens.
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.topMargin: Kirigami.Units.smallSpacing
+                        visible: card.cost !== null
+                        spacing: Kirigami.Units.largeSpacing
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 0
+
+                            PlasmaComponents3.Label {
+                                text: i18n("Today")
+                                opacity: 0.6
+                                font.pointSize: Kirigami.Theme.smallFont.pointSize
+                            }
+
+                            PlasmaComponents3.Label {
+                                text: card.cost ? full.costLine(card.cost, "today") : ""
+                                font.bold: true
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 0
+
+                            PlasmaComponents3.Label {
+                                text: i18n("Last 30 days")
+                                opacity: 0.6
+                                font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                horizontalAlignment: Text.AlignRight
+                                Layout.fillWidth: true
+                            }
+
+                            PlasmaComponents3.Label {
+                                text: card.cost ? full.costLine(card.cost, "month30") : ""
+                                font.bold: true
+                                horizontalAlignment: Text.AlignRight
+                                Layout.fillWidth: true
+                            }
+                        }
+                    }
+
+                    HistoryChart {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Kirigami.Units.gridUnit * 2.2
+                        visible: root.showHistory && card.cost !== null && card.cost.daily.length > 0
+                        accentColor: root.sessionColor
+                        series: card.cost !== null
+                            ? Parser.chartSeries(card.cost.daily, 14, new Date(root.nowMs).toISOString().slice(0, 10))
+                            : []
+                    }
+
+                    PlasmaComponents3.Label {
+                        Layout.fillWidth: true
+                        visible: text.length > 0
+                        text: {
+                            var parts = []
+                            if (card.modelData.source) {
+                                parts.push(i18n("Source: %1", card.modelData.source))
+                            }
+                            if (card.modelData.version) {
+                                parts.push(i18n("Version: %1", card.modelData.version))
+                            }
+                            return parts.join(" · ")
+                        }
+                        opacity: 0.45
+                        font.pointSize: Kirigami.Theme.smallFont.pointSize
+                        horizontalAlignment: Text.AlignRight
+                        elide: Text.ElideLeft
                     }
                 }
             }

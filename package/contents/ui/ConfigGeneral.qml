@@ -9,6 +9,9 @@ Kirigami.FormLayout {
     property alias cfg_codexbarPath: pathField.text
     property alias cfg_refreshMinutes: refreshSpin.value
     property alias cfg_showPace: paceCheck.checked
+    property alias cfg_showCost: costCheck.checked
+    property alias cfg_showHistory: historyCheck.checked
+    property alias cfg_proxyUrl: proxyField.text
 
     QQC2.TextField {
         id: pathField
@@ -38,5 +41,30 @@ Kirigami.FormLayout {
         id: paceCheck
         Kirigami.FormData.label: i18n("Details:")
         text: i18n("Show pace summaries")
+    }
+
+    QQC2.CheckBox {
+        id: costCheck
+        text: i18n("Show local token costs (Codex/Claude)")
+    }
+
+    QQC2.CheckBox {
+        id: historyCheck
+        text: i18n("Show daily spend history chart")
+    }
+
+    QQC2.TextField {
+        id: proxyField
+        Kirigami.FormData.label: i18n("Proxy:")
+        placeholderText: "socks5://127.0.0.1:1080"
+        Layout.fillWidth: true
+    }
+
+    QQC2.Label {
+        text: i18n("Exported as http_proxy/https_proxy/ALL_PROXY for every CLI call. Useful when provider APIs are blocked in your region. Leave empty for a direct connection.")
+        font.pointSize: Kirigami.Theme.smallFont.pointSize
+        opacity: 0.6
+        Layout.fillWidth: true
+        wrapMode: Text.WordWrap
     }
 }

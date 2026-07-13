@@ -17,6 +17,18 @@
             <label>Show pace summary lines under usage bars.</label>
             <default>true</default>
         </entry>
+        <entry name="showCost" type="Bool">
+            <label>Fetch and show local token cost usage (Codex and Claude).</label>
+            <default>true</default>
+        </entry>
+        <entry name="showHistory" type="Bool">
+            <label>Show the daily spend history chart in provider cards.</label>
+            <default>true</default>
+        </entry>
+        <entry name="proxyUrl" type="String">
+            <label>Proxy URL exported as http(s)_proxy/ALL_PROXY for CLI requests, e.g. socks5://127.0.0.1:1080.</label>
+            <default></default>
+        </entry>
         <entry name="selectedProviders" type="String">
             <label>Comma-separated provider ids to display. Empty means the providers enabled in the CodexBar CLI config.</label>
             <default></default>

@@ -358,3 +358,98 @@ test("formatAgo: humanized elapsed time", () => {
     assert.equal(parser.formatAgo(0, 30 * 3600 * 1000), "1d 6h ago");
     assert.equal(parser.formatAgo(-1, 1000), "");
 });
+
+const COST_PAYLOAD = [
+    {
+        provider: "codex",
+        sessionCostUSD: 0.42,
+        sessionTokens: 12345,
+        last30DaysCostUSD: 6.284147,
+        last30DaysTokens: 3376947,
+        daily: [
+            { date: "2026-07-08", totalCost: 0.35315, totalTokens: 223689 },
+            { date: "2026-07-12", totalCost: 1.658283, totalTokens: 771027 },
+        ],
+    },
+    {
+        provider: "claude",
+        sessionCostUSD: 862.0005,
+        sessionTokens: 628688150,
+        last30DaysCostUSD: 2881.9548,
+        last30DaysTokens: 2472054411,
+        daily: [],
+    },
+];
+
+test("parseCostJson: maps payloads by provider id", () => {
+    const result = parser.parseCostJson(JSON.stringify(COST_PAYLOAD));
+    assert.equal(result.ok, true);
+    const codex = result.byId.codex;
+    assert.equal(codex.todayCostUSD, 0.42);
+    assert.equal(codex.todayTokens, 12345);
+    assert.equal(codex.month30CostUSD, 6.284147);
+    assert.equal(codex.month30Tokens, 3376947);
+    assert.equal(codex.daily.length, 2);
+    assert.equal(codex.daily[1].totalCost, 1.658283);
+    assert.ok(result.byId.claude);
+});
+
+test("parseCostJson: rejects invalid input", () => {
+    assert.equal(parser.parseCostJson("nope {").ok, false);
+    assert.equal(parser.parseCostJson('{"provider":"codex"}').ok, false);
+});
+
+test("humanTokens: compact token counts", () => {
+    assert.equal(parser.humanTokens(0), "0");
+    assert.equal(parser.humanTokens(950), "950");
+    assert.equal(parser.humanTokens(12345), "12.3K");
+    assert.equal(parser.humanTokens(3376947), "3.4M");
+    assert.equal(parser.humanTokens(2472054411), "2.5B");
+    assert.equal(parser.humanTokens(null), "");
+});
+
+test("formatMoney: USD with two decimals", () => {
+    assert.equal(parser.formatMoney(6.284147), "$6.28");
+    assert.equal(parser.formatMoney(0), "$0.00");
+    assert.equal(parser.formatMoney(2881.9548), "$2881.95");
+    assert.equal(parser.formatMoney(null), "");
+});
+
+test("chartSeries: zero-filled last N days ending today", () => {
+    const daily = [
+        { date: "2026-07-08", totalCost: 0.35, totalTokens: 10 },
+        { date: "2026-07-12", totalCost: 1.66, totalTokens: 20 },
+    ];
+    const series = parser.chartSeries(daily, 7, "2026-07-12");
+    assert.equal(series.length, 7);
+    assert.equal(series[6].value, 1.66); // today
+    assert.equal(series[2].value, 0.35); // 2026-07-08
+    assert.equal(series[0].value, 0);    // gap zero-filled
+    assert.equal(series[6].date, "2026-07-12");
+});
+
+test("buildCommands: proxy env vars wrap the CLI call", () => {
+    const cmds = parser.buildCommands("codexbar", ["codex"], "http://127.0.0.1:3128");
+    assert.equal(cmds.length, 1);
+    assert.match(cmds[0], /https_proxy='http:\/\/127\.0\.0\.1:3128'/);
+    assert.match(cmds[0], /HTTPS_PROXY='http:\/\/127\.0\.0\.1:3128'/);
+    assert.match(cmds[0], /--provider codex/);
+});
+
+test("buildCommands: no proxy means no proxy vars, config mode is one command", () => {
+    const cmds = parser.buildCommands("codexbar", [], "");
+    assert.equal(cmds.length, 1);
+    assert.ok(cmds[0].indexOf("https_proxy") === -1);
+    assert.ok(cmds[0].indexOf("--provider") === -1);
+    const multi = parser.buildCommands("/opt/bin/codexbar", ["codex", "claude"], "");
+    assert.equal(multi.length, 2);
+    assert.match(multi[1], /--provider claude/);
+});
+
+test("buildCostCommand: cost subcommand with proxy", () => {
+    const cmd = parser.buildCostCommand("codexbar", "socks5://10.0.0.1:1080");
+    assert.match(cmd, /codexbar cost --format json --no-color/);
+    assert.match(cmd, /ALL_PROXY='socks5:\/\/10\.0\.0\.1:1080'/);
+    const plain = parser.buildCostCommand("codexbar", "");
+    assert.ok(plain.indexOf("ALL_PROXY") === -1);
+});

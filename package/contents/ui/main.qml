@@ -30,23 +30,18 @@ PlasmoidItem {
     readonly property color sessionColor: root.darkTheme ? "#3daee9" : "#2980b9"
     readonly property color weeklyColor: root.darkTheme ? "#f67400" : "#c85400"
 
+    // Local token-cost stats keyed by provider id (Codex/Claude scans).
+    property var costById: ({})
+
     readonly property string codexbarPath: Plasmoid.configuration.codexbarPath || "codexbar"
     readonly property bool showPace: Plasmoid.configuration.showPace
+    readonly property bool showCost: Plasmoid.configuration.showCost
+    readonly property bool showHistory: Plasmoid.configuration.showHistory
+    readonly property string proxyUrl: Plasmoid.configuration.proxyUrl || ""
     readonly property var selectedProviders: Parser.selectionList(Plasmoid.configuration.selectedProviders || "")
 
-    // One command per selected provider; a single unscoped command otherwise
-    // (the CLI then reports every provider enabled in its own config file).
-    readonly property var commands: {
-        // ~/.local/bin is not always on plasmashell's PATH.
-        var base = 'env PATH="$HOME/.local/bin:$PATH" ' + root.codexbarPath
-            + " usage --format json --no-color"
-        if (root.selectedProviders.length === 0) {
-            return [base]
-        }
-        return root.selectedProviders.map(function(id) {
-            return base + " --provider " + id
-        })
-    }
+    readonly property var commands: Parser.buildCommands(root.codexbarPath, root.selectedProviders, root.proxyUrl)
+    readonly property string costCommand: Parser.buildCostCommand(root.codexbarPath, root.proxyUrl)
 
     switchWidth: Kirigami.Units.gridUnit * 15
     switchHeight: Kirigami.Units.gridUnit * 12
@@ -92,20 +87,28 @@ PlasmoidItem {
             return
         }
         root.loading = true
-        root.pendingCount = root.commands.length
+        root.pendingCount = root.commands.length + (root.showCost ? 1 : 0)
         // Old models stay on screen; the executable engine reruns each
         // command and results merge in as they arrive.
         executable.connectedSources = []
         for (var i = 0; i < root.commands.length; i++) {
             executable.connectSource(root.commands[i])
         }
+        if (root.showCost) {
+            executable.connectSource(root.costCommand)
+        }
+    }
+
+    function handleCostResult(stdout) {
+        var parsed = Parser.parseCostJson(stdout)
+        if (parsed.ok) {
+            root.costById = parsed.byId
+            root.persistCache()
+        }
+        // A failed cost scan keeps the previous numbers; usage is unaffected.
     }
 
     function handleResult(stdout, stderr, exitCode) {
-        root.pendingCount = Math.max(0, root.pendingCount - 1)
-        if (root.pendingCount === 0) {
-            root.loading = false
-        }
         var parsed = Parser.parseUsageJson(stdout)
         if (!parsed.ok) {
             var message = stderr && stderr.trim().length > 0
@@ -154,6 +157,7 @@ PlasmoidItem {
         Plasmoid.configuration.cacheJson = JSON.stringify({
             byId: root.modelsById,
             order: root.modelOrder,
+            costById: root.costById,
             updatedAtMs: root.lastUpdatedMs,
         })
     }
@@ -167,6 +171,7 @@ PlasmoidItem {
             var cache = JSON.parse(raw)
             root.modelsById = cache.byId || {}
             root.modelOrder = cache.order || []
+            root.costById = cache.costById || {}
             root.lastUpdatedMs = cache.updatedAtMs !== undefined ? cache.updatedAtMs : -1
             root.rebuildModels()
         } catch (e) {
@@ -180,10 +185,18 @@ PlasmoidItem {
         connectedSources: []
         onNewData: function(source, data) {
             executable.disconnectSource(source)
-            root.handleResult(
-                data["stdout"] || "",
-                data["stderr"] || "",
-                data["exit code"])
+            root.pendingCount = Math.max(0, root.pendingCount - 1)
+            if (root.pendingCount === 0) {
+                root.loading = false
+            }
+            if (source === root.costCommand) {
+                root.handleCostResult(data["stdout"] || "")
+            } else {
+                root.handleResult(
+                    data["stdout"] || "",
+                    data["stderr"] || "",
+                    data["exit code"])
+            }
         }
     }
 

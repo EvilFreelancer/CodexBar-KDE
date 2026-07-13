@@ -332,6 +332,121 @@ function sweepAngle(percent) {
     return clamped * 3.6;
 }
 
+// Local token-cost scan payloads from `codexbar cost --format json`.
+function parseCostJson(text) {
+    var parsed;
+    try {
+        parsed = JSON.parse(text);
+    } catch (e) {
+        return { ok: false, error: "Invalid cost JSON: " + e.message, byId: {} };
+    }
+    if (!Array.isArray(parsed)) {
+        return { ok: false, error: "Unexpected cost payload (expected array)", byId: {} };
+    }
+    var byId = {};
+    for (var i = 0; i < parsed.length; i++) {
+        var p = parsed[i];
+        if (!p || !p.provider) {
+            continue;
+        }
+        var daily = [];
+        var rawDaily = p.daily || [];
+        for (var j = 0; j < rawDaily.length; j++) {
+            daily.push({
+                date: rawDaily[j].date || "",
+                totalCost: Number(rawDaily[j].totalCost) || 0,
+                totalTokens: Number(rawDaily[j].totalTokens) || 0,
+            });
+        }
+        byId[p.provider] = {
+            todayCostUSD: typeof p.sessionCostUSD === "number" ? p.sessionCostUSD : null,
+            todayTokens: typeof p.sessionTokens === "number" ? p.sessionTokens : null,
+            month30CostUSD: typeof p.last30DaysCostUSD === "number" ? p.last30DaysCostUSD : null,
+            month30Tokens: typeof p.last30DaysTokens === "number" ? p.last30DaysTokens : null,
+            daily: daily,
+        };
+    }
+    return { ok: true, error: "", byId: byId };
+}
+
+function humanTokens(value) {
+    if (value === null || value === undefined || !isFinite(value)) {
+        return "";
+    }
+    var n = Number(value);
+    if (n < 1000) {
+        return String(Math.round(n));
+    }
+    if (n < 1000000) {
+        return (Math.round(n / 100) / 10) + "K";
+    }
+    if (n < 1000000000) {
+        return (Math.round(n / 100000) / 10) + "M";
+    }
+    return (Math.round(n / 100000000) / 10) + "B";
+}
+
+function formatMoney(value) {
+    if (value === null || value === undefined || !isFinite(value)) {
+        return "";
+    }
+    return "$" + Number(value).toFixed(2);
+}
+
+// Zero-filled per-day cost series for the history chart, ending at todayIso.
+function chartSeries(daily, days, todayIso) {
+    var byDate = {};
+    for (var i = 0; i < (daily || []).length; i++) {
+        byDate[daily[i].date] = daily[i];
+    }
+    var series = [];
+    var today = new Date(todayIso + "T00:00:00Z");
+    for (var d = days - 1; d >= 0; d--) {
+        var day = new Date(today.getTime() - d * 86400000);
+        var iso = day.toISOString().slice(0, 10);
+        var entry = byDate[iso];
+        series.push({
+            date: iso,
+            value: entry ? entry.totalCost : 0,
+            tokens: entry ? entry.totalTokens : 0,
+        });
+    }
+    return series;
+}
+
+function shellQuote(value) {
+    return "'" + String(value).replace(/'/g, "'\"'\"'") + "'";
+}
+
+function commandPrefix(proxyUrl) {
+    // ~/.local/bin is not always on plasmashell's PATH.
+    var prefix = 'env PATH="$HOME/.local/bin:$PATH"';
+    if (proxyUrl && proxyUrl.trim().length > 0) {
+        var quoted = shellQuote(proxyUrl.trim());
+        prefix += " http_proxy=" + quoted + " https_proxy=" + quoted
+            + " HTTP_PROXY=" + quoted + " HTTPS_PROXY=" + quoted
+            + " ALL_PROXY=" + quoted;
+    }
+    return prefix;
+}
+
+// One usage command per selected provider; a single unscoped command when the
+// selection is empty (the CLI then reports the providers enabled in its own
+// config file).
+function buildCommands(codexbarPath, selected, proxyUrl) {
+    var base = commandPrefix(proxyUrl) + " " + codexbarPath + " usage --format json --no-color";
+    if (!selected || selected.length === 0) {
+        return [base];
+    }
+    return selected.map(function(id) {
+        return base + " --provider " + id;
+    });
+}
+
+function buildCostCommand(codexbarPath, proxyUrl) {
+    return commandPrefix(proxyUrl) + " " + codexbarPath + " cost --format json --no-color";
+}
+
 // Merge freshly parsed provider models into the cached map. Successful
 // fetches replace the cache entry; errors keep the last good data and only
 // mark it stale, so panel gauges never blank out during background refreshes.
@@ -423,5 +538,11 @@ if (typeof module !== "undefined" && module.exports) {
         sweepAngle: sweepAngle,
         applyUpdate: applyUpdate,
         formatAgo: formatAgo,
+        parseCostJson: parseCostJson,
+        humanTokens: humanTokens,
+        formatMoney: formatMoney,
+        chartSeries: chartSeries,
+        buildCommands: buildCommands,
+        buildCostCommand: buildCostCommand,
     };
 }

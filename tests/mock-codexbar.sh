@@ -13,13 +13,49 @@ if [ -n "${MOCK_CODEXBAR_DELAY:-}" ]; then
 fi
 
 provider="all"
+subcommand="usage"
 prev=""
 for arg in "$@"; do
+    case "$arg" in
+        usage|cost) subcommand="$arg" ;;
+    esac
     if [ "$prev" = "--provider" ]; then
         provider="$arg"
     fi
     prev="$arg"
 done
+
+if [ "$subcommand" = "cost" ]; then
+    d() { date -u -d "-$1 days" +%Y-%m-%d; }
+    cat <<EOF
+[
+  {
+    "provider": "codex",
+    "sessionCostUSD": 0.42, "sessionTokens": 118000,
+    "last30DaysCostUSD": 6.28, "last30DaysTokens": 3376947,
+    "daily": [
+      {"date": "$(d 6)", "totalCost": 0.9, "totalTokens": 400000},
+      {"date": "$(d 4)", "totalCost": 0.35, "totalTokens": 220000},
+      {"date": "$(d 2)", "totalCost": 1.2, "totalTokens": 600000},
+      {"date": "$(d 0)", "totalCost": 0.42, "totalTokens": 118000}
+    ]
+  },
+  {
+    "provider": "claude",
+    "sessionCostUSD": 84.2, "sessionTokens": 62800000,
+    "last30DaysCostUSD": 2881.95, "last30DaysTokens": 2472054411,
+    "daily": [
+      {"date": "$(d 6)", "totalCost": 120.5, "totalTokens": 90000000},
+      {"date": "$(d 5)", "totalCost": 40.1, "totalTokens": 35000000},
+      {"date": "$(d 3)", "totalCost": 210.7, "totalTokens": 170000000},
+      {"date": "$(d 1)", "totalCost": 95.0, "totalTokens": 81000000},
+      {"date": "$(d 0)", "totalCost": 84.2, "totalTokens": 62800000}
+    ]
+  }
+]
+EOF
+    exit 0
+fi
 
 iso() { date -u -d "$1" +%Y-%m-%dT%H:%M:%SZ; }
 
