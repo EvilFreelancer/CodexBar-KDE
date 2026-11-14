@@ -124,7 +124,18 @@ PlasmoidItem {
         root.globalError = ""
         var now = Date.now()
         var state = Parser.applyUpdate(root.modelsById, parsed.models, now)
+        // Drop providers the widget no longer follows. applyUpdate() only adds
+        // keys, so a provider disabled in the CodexBar CLI config would stay in
+        // the persisted cache and keep rendering forever. A valid empty payload
+        // means nothing is enabled, so the panel may legitimately empty out;
+        // failed or unparseable payloads return above and keep the cache.
+        var keepIds = Parser.cacheIds(root.selectedProviders, parsed.models)
+        state.byId = Parser.pruneProviders(state.byId, keepIds)
         root.modelsById = state.byId
+        if (root.selectedProviders.length === 0) {
+            // Following the CLI config: the unscoped payload is the provider list.
+            root.modelOrder = keepIds
+        }
         var hadFreshData = parsed.models.some(function(m) { return !m.error })
         if (hadFreshData) {
             root.lastUpdatedMs = now

@@ -348,6 +348,42 @@ test("applyUpdate: error without cache shows the error model", () => {
     assert.match(state.byId.gemini.error, /not found/);
 });
 
+test("pruneProviders: drops providers the payload no longer includes", () => {
+    const codex = parser.parseUsageJson(JSON.stringify([CODEX_PAYLOAD])).models;
+    const claude = parser.parseUsageJson(JSON.stringify([CLAUDE_PAYLOAD])).models;
+    const merged = parser.applyUpdate(parser.applyUpdate({}, codex, 1000).byId, claude, 2000);
+
+    const pruned = parser.pruneProviders(merged.byId, ["codex"]);
+    assert.deepEqual(Object.keys(pruned), ["codex"]);
+    assert.equal(pruned.claude, undefined, "a disabled provider must not survive the cache");
+});
+
+test("pruneProviders: keeps every requested provider and ignores unknown ids", () => {
+    const codex = parser.parseUsageJson(JSON.stringify([CODEX_PAYLOAD])).models;
+    const claude = parser.parseUsageJson(JSON.stringify([CLAUDE_PAYLOAD])).models;
+    const merged = parser.applyUpdate(parser.applyUpdate({}, codex, 1000).byId, claude, 2000);
+
+    const pruned = parser.pruneProviders(merged.byId, ["codex", "claude", "ghost"]);
+    assert.deepEqual(Object.keys(pruned).sort(), ["claude", "codex"]);
+});
+
+test("pruneProviders: an empty id list keeps nothing", () => {
+    const codex = parser.parseUsageJson(JSON.stringify([CODEX_PAYLOAD])).models;
+    const state = parser.applyUpdate({}, codex, 1000);
+    assert.deepEqual(parser.pruneProviders(state.byId, []), {});
+});
+
+test("cacheIds: follows the payload when nothing is selected", () => {
+    const models = parser.parseUsageJson(JSON.stringify([CODEX_PAYLOAD, CLAUDE_PAYLOAD])).models;
+    assert.deepEqual(parser.cacheIds([], models), ["codex", "claude"]);
+});
+
+test("cacheIds: an explicit selection outranks the payload", () => {
+    const models = parser.parseUsageJson(JSON.stringify([CODEX_PAYLOAD])).models;
+    assert.deepEqual(parser.cacheIds(["claude"], models), ["claude"],
+        "a selected provider keeps its cached data until the CLI returns it again");
+});
+
 test("formatAgo: humanized elapsed time", () => {
     const now = 10 * 60 * 1000;
     assert.equal(parser.formatAgo(now - 20 * 1000, now), "just now");

@@ -475,6 +475,35 @@ function applyUpdate(prevById, models, nowMs) {
     return { byId: byId };
 }
 
+// Provider ids whose cache entries survive a refresh: the explicit provider
+// selection, or the ids in the payload when the widget follows the CodexBar
+// CLI config. A selected provider keeps whatever is cached even when a
+// per-provider payload omits it, so commands can arrive in any order.
+function cacheIds(selected, models) {
+    if (selected && selected.length > 0) {
+        return selected;
+    }
+    var ids = [];
+    for (var i = 0; i < models.length; i++) {
+        ids.push(models[i].id);
+    }
+    return ids;
+}
+
+// Keep only the providers the widget still follows. applyUpdate() only ever
+// adds keys, so without this a provider disabled in the CodexBar CLI config
+// would stay in the persisted cache and keep rendering forever.
+function pruneProviders(byId, ids) {
+    var out = {};
+    for (var i = 0; i < ids.length; i++) {
+        var id = ids[i];
+        if (byId[id] !== undefined) {
+            out[id] = byId[id];
+        }
+    }
+    return out;
+}
+
 function formatAgo(thenMs, nowMs) {
     if (thenMs === null || thenMs === undefined || thenMs < 0) {
         return "";
@@ -537,6 +566,8 @@ if (typeof module !== "undefined" && module.exports) {
         gaugeCenterPercent: gaugeCenterPercent,
         sweepAngle: sweepAngle,
         applyUpdate: applyUpdate,
+        cacheIds: cacheIds,
+        pruneProviders: pruneProviders,
         formatAgo: formatAgo,
         parseCostJson: parseCostJson,
         humanTokens: humanTokens,
