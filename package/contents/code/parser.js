@@ -475,19 +475,24 @@ function applyUpdate(prevById, models, nowMs) {
     return { byId: byId };
 }
 
-// Provider ids whose cache entries survive a refresh: the explicit provider
-// selection, or the ids in the payload when the widget follows the CodexBar
-// CLI config. A selected provider keeps whatever is cached even when a
-// per-provider payload omits it, so commands can arrive in any order.
-function cacheIds(selected, models) {
+// Provider ids whose cache entries survive a refresh. `unscoped` is true when
+// the finished command asked the CLI for every enabled provider; a per-provider
+// command reports only its own slice, so it must never be treated as the full
+// list — the provider selection can change while a batch is still in flight.
+// Returns null when the response carries no list authority; the caller then
+// leaves the cache untouched.
+function cacheIds(selected, models, unscoped) {
+    if (unscoped) {
+        var ids = [];
+        for (var i = 0; i < models.length; i++) {
+            ids.push(models[i].id);
+        }
+        return ids;
+    }
     if (selected && selected.length > 0) {
         return selected;
     }
-    var ids = [];
-    for (var i = 0; i < models.length; i++) {
-        ids.push(models[i].id);
-    }
-    return ids;
+    return null;
 }
 
 // Keep only the providers the widget still follows. applyUpdate() only ever

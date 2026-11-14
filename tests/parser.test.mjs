@@ -373,15 +373,25 @@ test("pruneProviders: an empty id list keeps nothing", () => {
     assert.deepEqual(parser.pruneProviders(state.byId, []), {});
 });
 
-test("cacheIds: follows the payload when nothing is selected", () => {
+test("cacheIds: an unscoped payload is the provider list", () => {
     const models = parser.parseUsageJson(JSON.stringify([CODEX_PAYLOAD, CLAUDE_PAYLOAD])).models;
-    assert.deepEqual(parser.cacheIds([], models), ["codex", "claude"]);
+    assert.deepEqual(parser.cacheIds([], models, true), ["codex", "claude"]);
 });
 
-test("cacheIds: an explicit selection outranks the payload", () => {
+test("cacheIds: an empty unscoped payload clears the cache", () => {
+    assert.deepEqual(parser.cacheIds([], [], true), []);
+});
+
+test("cacheIds: a scoped payload keeps only the selection", () => {
     const models = parser.parseUsageJson(JSON.stringify([CODEX_PAYLOAD])).models;
-    assert.deepEqual(parser.cacheIds(["claude"], models), ["claude"],
-        "a selected provider keeps its cached data until the CLI returns it again");
+    assert.deepEqual(parser.cacheIds(["codex", "claude"], models, false), ["codex", "claude"],
+        "a selected provider keeps its cached data until its own command returns");
+});
+
+test("cacheIds: a scoped payload has no authority once the selection was cleared", () => {
+    const models = parser.parseUsageJson(JSON.stringify([CODEX_PAYLOAD])).models;
+    assert.equal(parser.cacheIds([], models, false), null,
+        "a per-provider response must not be mistaken for the full provider list");
 });
 
 test("formatAgo: humanized elapsed time", () => {

@@ -20,6 +20,13 @@ PlasmoidItem {
     property string globalError: ""
     property bool loading: false
     property int pendingCount: 0
+    // Scope of the batch currently in flight: true when its single command
+    // asked for every provider enabled in the CLI config, false for the
+    // per-provider commands of an explicit widget selection.
+    property bool inFlightUnscoped: false
+    // A refresh requested while one was running (the provider selection can
+    // change mid-flight). It runs as soon as the current batch completes.
+    property bool refreshQueued: false
     property double lastUpdatedMs: -1
     // Ticks every 30s so countdown and "ago" labels stay fresh.
     property double nowMs: Date.now()
@@ -84,9 +91,17 @@ PlasmoidItem {
 
     function refresh() {
         if (root.loading) {
+            // The selection changed while a batch was running; run the new
+            // command set as soon as it finishes instead of dropping it.
+            root.refreshQueued = true
             return
         }
         root.loading = true
+        root.refreshQueued = false
+        // A selection made now describes the commands dispatched now; a result
+        // arriving later must be interpreted with the scope it was requested
+        // under, not with whatever the settings say when it lands.
+        root.inFlightUnscoped = root.selectedProviders.length === 0
         root.pendingCount = root.commands.length + (root.showCost ? 1 : 0)
         // Old models stay on screen; the executable engine reruns each
         // command and results merge in as they arrive.
@@ -108,7 +123,7 @@ PlasmoidItem {
         // A failed cost scan keeps the previous numbers; usage is unaffected.
     }
 
-    function handleResult(stdout, stderr, exitCode) {
+    function handleResult(stdout, stderr, exitCode, unscoped) {
         var parsed = Parser.parseUsageJson(stdout)
         if (!parsed.ok) {
             var message = stderr && stderr.trim().length > 0
@@ -126,13 +141,16 @@ PlasmoidItem {
         var state = Parser.applyUpdate(root.modelsById, parsed.models, now)
         // Drop providers the widget no longer follows. applyUpdate() only adds
         // keys, so a provider disabled in the CodexBar CLI config would stay in
-        // the persisted cache and keep rendering forever. A valid empty payload
-        // means nothing is enabled, so the panel may legitimately empty out;
-        // failed or unparseable payloads return above and keep the cache.
-        var keepIds = Parser.cacheIds(root.selectedProviders, parsed.models)
-        state.byId = Parser.pruneProviders(state.byId, keepIds)
+        // the persisted cache and keep rendering forever. Only a command that
+        // asked for every enabled provider carries the provider list; a
+        // per-provider response describes its own slice and must not prune the
+        // rest, because the selection may have changed while it was in flight.
+        var keepIds = Parser.cacheIds(root.selectedProviders, parsed.models, unscoped)
+        if (keepIds !== null) {
+            state.byId = Parser.pruneProviders(state.byId, keepIds)
+        }
         root.modelsById = state.byId
-        if (root.selectedProviders.length === 0) {
+        if (unscoped) {
             // Following the CLI config: the unscoped payload is the provider list.
             root.modelOrder = keepIds
         }
@@ -196,17 +214,24 @@ PlasmoidItem {
         connectedSources: []
         onNewData: function(source, data) {
             executable.disconnectSource(source)
-            root.pendingCount = Math.max(0, root.pendingCount - 1)
-            if (root.pendingCount === 0) {
-                root.loading = false
-            }
+            // Read the scope before handling: a queued refresh started below
+            // may replace it.
+            var unscoped = root.inFlightUnscoped
             if (source === root.costCommand) {
                 root.handleCostResult(data["stdout"] || "")
             } else {
                 root.handleResult(
                     data["stdout"] || "",
                     data["stderr"] || "",
-                    data["exit code"])
+                    data["exit code"],
+                    unscoped)
+            }
+            root.pendingCount = Math.max(0, root.pendingCount - 1)
+            if (root.pendingCount === 0) {
+                root.loading = false
+                if (root.refreshQueued) {
+                    root.refresh()
+                }
             }
         }
     }
