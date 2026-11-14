@@ -479,20 +479,26 @@ function applyUpdate(prevById, models, nowMs) {
 // the finished command asked the CLI for every enabled provider; a per-provider
 // command reports only its own slice, so it must never be treated as the full
 // list — the provider selection can change while a batch is still in flight.
-// Returns null when the response carries no list authority; the caller then
-// leaves the cache untouched.
+// Selected ids are always kept: a provider picked after dispatch would
+// otherwise lose its cached gauges before its own fetch returns. Returns null
+// when the response carries no list authority; the caller then leaves the
+// cache untouched.
 function cacheIds(selected, models, unscoped) {
+    var ids = [];
     if (unscoped) {
-        var ids = [];
         for (var i = 0; i < models.length; i++) {
             ids.push(models[i].id);
         }
-        return ids;
     }
     if (selected && selected.length > 0) {
-        return selected;
+        for (var j = 0; j < selected.length; j++) {
+            if (ids.indexOf(selected[j]) === -1) {
+                ids.push(selected[j]);
+            }
+        }
+        return ids;
     }
-    return null;
+    return unscoped ? ids : null;
 }
 
 // Keep only the providers the widget still follows. applyUpdate() only ever

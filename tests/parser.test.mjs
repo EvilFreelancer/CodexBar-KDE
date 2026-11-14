@@ -382,6 +382,14 @@ test("cacheIds: an empty unscoped payload clears the cache", () => {
     assert.deepEqual(parser.cacheIds([], [], true), []);
 });
 
+test("cacheIds: an unscoped payload preserves a mid-flight selection", () => {
+    const models = parser.parseUsageJson(JSON.stringify([CODEX_PAYLOAD])).models;
+    assert.deepEqual(parser.cacheIds(["claude"], models, true), ["codex", "claude"],
+        "a provider selected after dispatch keeps its cached gauges until its own fetch returns");
+    assert.deepEqual(parser.cacheIds(["codex"], models, true), ["codex"],
+        "ids already in the payload are not duplicated");
+});
+
 test("cacheIds: a scoped payload keeps only the selection", () => {
     const models = parser.parseUsageJson(JSON.stringify([CODEX_PAYLOAD])).models;
     assert.deepEqual(parser.cacheIds(["codex", "claude"], models, false), ["codex", "claude"],

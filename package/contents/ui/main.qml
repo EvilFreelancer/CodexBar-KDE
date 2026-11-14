@@ -24,6 +24,10 @@ PlasmoidItem {
     // asked for every provider enabled in the CLI config, false for the
     // per-provider commands of an explicit widget selection.
     property bool inFlightUnscoped: false
+    // Cost command of the batch currently in flight. The settings can change
+    // its string mid-flight (proxy or binary path), and the old cost result
+    // must still be recognised as costs, not parsed as a usage payload.
+    property string inFlightCostCommand: ""
     // A refresh requested while one was running (the provider selection can
     // change mid-flight). It runs as soon as the current batch completes.
     property bool refreshQueued: false
@@ -102,6 +106,7 @@ PlasmoidItem {
         // arriving later must be interpreted with the scope it was requested
         // under, not with whatever the settings say when it lands.
         root.inFlightUnscoped = root.selectedProviders.length === 0
+        root.inFlightCostCommand = root.showCost ? root.costCommand : ""
         root.pendingCount = root.commands.length + (root.showCost ? 1 : 0)
         // Old models stay on screen; the executable engine reruns each
         // command and results merge in as they arrive.
@@ -214,10 +219,11 @@ PlasmoidItem {
         connectedSources: []
         onNewData: function(source, data) {
             executable.disconnectSource(source)
-            // Read the scope before handling: a queued refresh started below
-            // may replace it.
+            // Read the batch identity before handling: a queued refresh started
+            // below may replace these snapshots.
             var unscoped = root.inFlightUnscoped
-            if (source === root.costCommand) {
+            var dispatchedCostCommand = root.inFlightCostCommand
+            if (source === dispatchedCostCommand) {
                 root.handleCostResult(data["stdout"] || "")
             } else {
                 root.handleResult(
