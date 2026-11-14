@@ -475,6 +475,46 @@ function applyUpdate(prevById, models, nowMs) {
     return { byId: byId };
 }
 
+// Provider ids whose cache entries survive a refresh. `unscoped` is true when
+// the finished command asked the CLI for every enabled provider; a per-provider
+// command reports only its own slice, so it must never be treated as the full
+// list — the provider selection can change while a batch is still in flight.
+// Selected ids are always kept: a provider picked after dispatch would
+// otherwise lose its cached gauges before its own fetch returns. Returns null
+// when the response carries no list authority; the caller then leaves the
+// cache untouched.
+function cacheIds(selected, models, unscoped) {
+    var ids = [];
+    if (unscoped) {
+        for (var i = 0; i < models.length; i++) {
+            ids.push(models[i].id);
+        }
+    }
+    if (selected && selected.length > 0) {
+        for (var j = 0; j < selected.length; j++) {
+            if (ids.indexOf(selected[j]) === -1) {
+                ids.push(selected[j]);
+            }
+        }
+        return ids;
+    }
+    return unscoped ? ids : null;
+}
+
+// Keep only the providers the widget still follows. applyUpdate() only ever
+// adds keys, so without this a provider disabled in the CodexBar CLI config
+// would stay in the persisted cache and keep rendering forever.
+function pruneProviders(byId, ids) {
+    var out = {};
+    for (var i = 0; i < ids.length; i++) {
+        var id = ids[i];
+        if (byId[id] !== undefined) {
+            out[id] = byId[id];
+        }
+    }
+    return out;
+}
+
 function formatAgo(thenMs, nowMs) {
     if (thenMs === null || thenMs === undefined || thenMs < 0) {
         return "";
@@ -537,6 +577,8 @@ if (typeof module !== "undefined" && module.exports) {
         gaugeCenterPercent: gaugeCenterPercent,
         sweepAngle: sweepAngle,
         applyUpdate: applyUpdate,
+        cacheIds: cacheIds,
+        pruneProviders: pruneProviders,
         formatAgo: formatAgo,
         parseCostJson: parseCostJson,
         humanTokens: humanTokens,
